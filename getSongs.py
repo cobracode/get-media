@@ -13,7 +13,7 @@ LOG_FILE = 'getSongs.log'
 SONG_FILE = 'songs.txt'
 
 MUSIC_DIR = ''
-YMP3 = ''
+YMP3 = 'youtube-dl -w --no-post-overwrites --extract-audio --audio-format mp3 --no-mtime -i -o '
 YUPDATE = 'youtube-dl -U'
 
 
@@ -25,11 +25,13 @@ def getEnvVars():
     logging.debug('Env ' + MUSIC_DIR_VAR + ': \'' + MUSIC_DIR + '\'')
   except KeyError as e:
     raise KeyError("Could not get environment variable: %s" % e)
+  except BaseError as e:
+    raise BaseError("Unexpected error while getting environment variables: %s" % e)
   
     
 def setEnvDependentVars():
   global YMP3
-  YMP3 = 'youtube-dl -w --no-post-overwrites --extract-audio --audio-format mp3 --no-mtime -i -o ' + MUSIC_DIR + '/%(title)s.%(ext)s'
+  YMP3 += MUSIC_DIR + '/%(title)s.%(ext)s'
 
 
 def initLog():
@@ -62,7 +64,9 @@ def getSongLinks():
       lines = songFile.readlines()
     songFile.close()
   except FileNotFoundError as e:
-      raise FileNotFoundError("Song file '%s' not found" % SONG_FILE)
+    raise FileNotFoundError("Song file '%s' not found" % SONG_FILE)
+  except BaseError as e:
+    raise BaseError("Unexpected error while getting song list: %s" % e)
       
   for line in lines:
     line = line.strip()

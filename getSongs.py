@@ -1,7 +1,6 @@
 # coding: utf-8
 # Meant to be run with Python 3
 
-import copy
 import logging
 import os
 import subprocess
@@ -13,17 +12,24 @@ MUSIC_DIR_VAR = 'MUSIC'
 LOG_FILE = 'getSongs.log'
 SONG_FILE = 'songs.txt'
 
-# These commands must be in list format (hence the split()), as subprocess.command() expects it
-YMP3 = 'youtube-dl -w --n-post-overwrites --extract-audio --audio-format mp3 --no-mtime -l'
+MUSIC_DIR = ''
+YMP3 = ''
 YUPDATE = 'youtube-dl -U'
 
 
 def getEnvVars():
+  global MUSIC_DIR
+  
   try:
     MUSIC_DIR = os.environ[MUSIC_DIR_VAR]
     logging.debug('Env ' + MUSIC_DIR_VAR + ': \'' + MUSIC_DIR + '\'')
   except KeyError as e:
     raise KeyError("Could not get environment variable: %s" % e)
+  
+    
+def setEnvDependentVars():
+  global YMP3
+  YMP3 = 'youtube-dl -w --no-post-overwrites --extract-audio --audio-format mp3 --no-mtime -i -o ' + MUSIC_DIR + '/%(title)s.%(ext)s'
 
 
 def initLog():
@@ -63,9 +69,10 @@ def getSongLinks():
 
     if len(line) != 0 and '#' != line[0]:
       if 'end' == line:
-        logging.info('Reached \'end\' of song file. Stopping adding songs.')
+        logging.info('Reached \'end\' line. Stopping adding songs.')
         break
       else:
+        logging.info("Adding song %d: '%s'" % (len(songLinks) + 1, line))
         songLinks.append(line)
       
   return songLinks
@@ -76,18 +83,14 @@ def updateDownloader():
   subprocess.call(YUPDATE.split(' '))
 
 
-def downloadSongs():
-  # for each link in songs.txt
-  #   run YMP3 <SONG>, saving to <MUSIC>
-  try:
-    # Update to latest version, as not doing so can end in failure
-    updateDownloader()
-    
-    for song in getSongLinks():
-      commandList = copy.deepcopy(YMP3)
-      commandList.append(song)
-      
-      logging.info("Downloading link '%s'" % song)
+def downloadSongs(songLinks):
+  numSongs = len(songLinks)
+  count = 0
+  
+  try:    
+    for song in songLinks:
+      count += 1
+      logging.info("Downloading track %d/%d: '%s'" % (count, numSongs, song))
       subprocess.call(str(YMP3 + ' ' + song).split(' '))
   except BaseException as e:
     raise RuntimeError("Error downloading tracks: %s" % e)
@@ -99,7 +102,11 @@ if '__main__' == __name__:
   try:
     initLog()
     getEnvVars()
-    downloadSongs()
+    setEnvDependentVars()
+    
+    # Update to latest version, as not doing so can end in failure
+    updateDownloader()
+    
+    downloadSongs(getSongLinks())
   except BaseException as e:
     logging.error(e)
-  

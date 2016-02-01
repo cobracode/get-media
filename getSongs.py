@@ -14,7 +14,7 @@ SONG_FILE = 'songs.txt'
 
 MUSIC_DIR = ''
 YMP3 = 'youtube-dl -w --no-post-overwrites --extract-audio --audio-format mp3 --no-mtime -i -o '
-YUPDATE = 'youtube-dl -U'
+YUPDATE = 'sudo youtube-dl -U'
 
 
 def getEnvVars():
@@ -28,7 +28,7 @@ def getEnvVars():
   except BaseError as e:
     raise BaseError("Unexpected error while getting environment variables: %s" % e)
   
-    
+
 def setEnvDependentVars():
   global YMP3
   YMP3 += MUSIC_DIR + '/%(title)s.%(ext)s'
@@ -51,27 +51,28 @@ def initLog():
     logging.getLogger('').setLevel(logging.DEBUG)
     
     logging.debug('Logging initialized')
-    
+
+
 # Skip blank lines and comments (lines beginning with '#')
 # Stop when reach line of 'end'; this allows previous tracks
 # to accumulate without downloading the same ones multiple times
-def getSongLinks():
+def getSongLinks(songFilename):
   songLinks = []
   lines = []
   
   try:
-    with open(SONG_FILE, 'r') as songFile:
+    with open(songFilename, 'r') as songFile:
       lines = songFile.readlines()
     songFile.close()
   except FileNotFoundError as e:
-    raise FileNotFoundError("Song file '%s' not found" % SONG_FILE)
+    raise FileNotFoundError("Song file '%s' not found" % songFilename)
   except BaseError as e:
     raise BaseError("Unexpected error while getting song list: %s" % e)
       
   for line in lines:
     line = line.strip()
 
-    if len(line) != 0 and '#' != line[0]:
+    if len(line) > 0 and '#' != line[0]:
       if 'end' == line:
         logging.info('Reached \'end\' line. Stopping adding songs.')
         break
@@ -80,7 +81,7 @@ def getSongLinks():
         songLinks.append(line)
       
   return songLinks
-    
+
 
 
 def updateDownloader():
@@ -98,6 +99,8 @@ def downloadSongs(songLinks):
       subprocess.call(str(YMP3 + ' ' + song).split(' '))
   except BaseException as e:
     raise RuntimeError("Error downloading tracks: %s" % e)
+    
+  logging.info('--------- Finished downloading tracks ---------')
 
 
 
@@ -110,7 +113,10 @@ if '__main__' == __name__:
     
     # Update to latest version, as not doing so can end in failure
     updateDownloader()
+
+    downloadSongs(getSongLinks(SONG_FILE))
+    logging.info('------- Run Complete -------')
+    logging.info('')
     
-    downloadSongs(getSongLinks())
   except BaseException as e:
     logging.error(e)
